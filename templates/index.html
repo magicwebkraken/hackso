@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Chain Wallet Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Multi-Chain Wallet Scanner</h1>
+            <p class="subtitle">Automated Private Key Scanner & Balance Checker</p>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="card control-panel">
+            <h2>Scanner Control</h2>
+            <div class="mode-selector" style="margin-bottom: 20px;">
+                <label style="margin-right: 15px;">
+                    <input type="radio" name="scanMode" value="random" checked> Random Scan
+                </label>
+                <label>
+                    <input type="radio" name="scanMode" value="sequential"> Sequential Range Scan
+                </label>
+            </div>
+            <div style="margin-bottom: 15px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; border: 1px solid var(--primary-color);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="skipSearched" checked>
+                    <span>Skip already-searched keys (uncheck to re-check ALL keys)</span>
+                </label>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="delay">Delay (seconds):</label>
+                    <input type="number" id="delay" value="0.01" min="0" step="0.01" title="Set to 0 for maximum speed (100-200 wallets/min)">
+                    <small style="color: var(--text-secondary); font-size: 0.8rem; display: block; margin-top: 4px;">
+                        Recommended: 0.01 for 100-200/min, 0 for max speed
+                    </small>
+                </div>
+                <div class="control-group">
+                    <label for="maxKeys">Max Keys (optional):</label>
+                    <input type="number" id="maxKeys" placeholder="Unlimited" min="1">
+                </div>
+                <div class="button-group">
+                    <button id="startBtn" class="btn btn-primary">▶ Start Scanning</button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>⏹ Stop Scanning</button>
+                </div>
+            </div>
+            <!-- Sequential Range Settings -->
+            <div id="sequentialSettings" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-dark); border-radius: 8px;">
+                <h3 style="margin-bottom: 15px; font-size: 1rem;">Sequential Range Settings</h3>
+                <div class="control-group" style="margin-bottom: 10px;">
+                    <label for="startKey">Start Key (0x...):</label>
+                    <input type="text" id="startKey" value="0x0000000000000000000000000000000000000000000000000000000000000000" 
+                           placeholder="0x0000000000000000000000000000000000000000000000000000000000000000" 
+                           style="width: 100%; font-family: monospace; font-size: 0.9rem;">
+                </div>
+                <div class="control-group">
+                    <label for="endKey">End Key (0x...):</label>
+                    <input type="text" id="endKey" value="0x9999999999999999999999999999999999999999999999999999999999999999" 
+                           placeholder="0x9999999999999999999999999999999999999999999999999999999999999999" 
+                           style="width: 100%; font-family: monospace; font-size: 0.9rem;">
+                </div>
+                <div id="sequentialProgress" style="margin-top: 15px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; display: none;">
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                        <div><strong>Progress:</strong> <span id="seqPercent">0</span>%</div>
+                        <div><strong>Scanned:</strong> <span id="seqScanned">0</span> / <span id="seqTotal">0</span></div>
+                        <div><strong>Current:</strong> <span id="seqCurrent" style="font-family: monospace; color: var(--primary-color);"></span></div>
+                    </div>
+                </div>
+            </div>
+            <div id="statusIndicator" class="status-indicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Stopped</span>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <h3 id="totalSearched">0</h3>
+                    <p>Total Keys Searched</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3 id="totalChecked">0</h3>
+                    <p>Keys Checked (This Session)</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <h3 id="walletsWithBalance">0</h3>
+                    <p>Wallets with Balance</p>
+                </div>
+            </div>
+            <div class="stat-card highlight">
+                <div class="stat-icon">💵</div>
+                <div class="stat-content">
+                    <h3 id="totalBalance">0.000000</h3>
+                    <p>Total Balance Found</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="card">
+            <h3>Scanning Progress</h3>
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-info">
+                <div id="progressText">Ready to start scanning</div>
+                <div id="currentAddress" class="current-address" style="display: none;">
+                    <div><strong>🔑 Private Key:</strong> <span id="currentKeyText" class="private-key-text" style="cursor: pointer;" title="Click to copy"></span></div>
+                    <div style="margin-top: 8px;">
+                        <strong>Address:</strong> 
+                        <span id="currentAddrText" class="address-text"></span>
+                        <div id="currentAddrLinks" style="display: none; margin-top: 5px; gap: 5px; flex-wrap: wrap;">
+                            <a id="currentEtherscanLink" href="#" target="_blank" class="explorer-link etherscan-link">🔍 Etherscan</a>
+                            <a id="currentBscscanLink" href="#" target="_blank" class="explorer-link bscscan-link">🔍 BSCScan</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Searched Keys List -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>🔑 Recently Searched Private Keys</h2>
+                <button id="refreshSearched" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9rem;">Refresh</button>
+            </div>
+            <div id="searchedList" class="searched-list">
+                <p class="empty-state">No keys searched yet. Start scanning to see progress!</p>
+            </div>
+        </div>
+
+        <!-- Last Found Wallet Alert -->
+        <div id="foundAlert" class="alert alert-success" style="display: none;">
+            <h3>💰 Balance Found!</h3>
+            <div id="foundWalletInfo"></div>
+        </div>
+
+        <!-- Export Button -->
+        <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid var(--warning-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; color: var(--text-primary);">📥 Export All Searched Keys</h2>
+                    <p style="color: var(--text-secondary); margin-top: 5px; font-size: 0.9rem;">
+                        Save all searched private keys and addresses to a text file
+                    </p>
+                </div>
+                <button id="exportBtn" class="btn btn-primary" style="padding: 12px 24px;">
+                    💾 Export to TXT
+                </button>
+            </div>
+            <div id="exportStatus" style="margin-top: 15px; display: none; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; color: var(--success-color); font-weight: 600;"></div>
+        </div>
+
+        <!-- Wallets with Balance -->
+        <div class="card">
+            <h2>💰 Wallets with Balance (Private Keys Shown)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
+                All private keys are displayed below. Click any private key to copy it to clipboard.
+            </p>
+            <div id="walletsList" class="wallets-list">
+                <p class="empty-state">No wallets with balance found yet. Start scanning to begin!</p>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <h2>Recent Activity</h2>
+            <div id="activityLog" class="activity-log">
+                <p class="empty-state">No activity yet</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+

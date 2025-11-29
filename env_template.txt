@@ -1,0 +1,44 @@
+# RPC Endpoint Configuration
+# Copy this file to .env and update with your RPC endpoints
+# Currently using paid Alchemy endpoints for maximum speed
+
+# Ethereum - Paid Alchemy (Fast)
+ETHEREUM_RPC=https://eth-mainnet.g.alchemy.com/v2/8Ld0inzc-YClnrhCRRMaC
+
+# BNB/BSC - Paid Alchemy (Fast)
+BSC_RPC=https://bnb-mainnet.g.alchemy.com/v2/8Ld0inzc-YClnrhCRRMaC
+
+# Other chains (disabled - only checking Ethereum and BNB)
+# POLYGON_RPC=https://polygon-rpc.com/
+# AVALANCHE_RPC=https://api.avax.network/ext/bc/C/rpc
+# FANTOM_RPC=https://rpc.ftm.tools/
+# ARBITRUM_RPC=https://arb1.arbitrum.io/rpc
+# OPTIMISM_RPC=https://mainnet.optimism.io
+
+# ============================================
+# Domain Configuration (for production)
+# ============================================
+
+# Your domain name (e.g., wallet-scanner.example.com)
+# Leave empty for localhost development
+DOMAIN=
+
+# Allowed hosts (comma-separated list)
+# Add your domain, IP addresses, and localhost
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# CORS Origins (comma-separated, or * for all)
+# For production, specify your domain: https://yourdomain.com
+CORS_ORIGINS=*
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=5000
+
+# Debug mode (set to false for production)
+DEBUG=False
+
+# Secret key for Flask sessions (generate a random string)
+# You can generate one with: python -c "import secrets; print(secrets.token_hex(24))"
+SECRET_KEY=
+
