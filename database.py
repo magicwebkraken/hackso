@@ -9,13 +9,20 @@ import os
 import threading
 
 class WalletDatabase:
-    def __init__(self, db_file: str = 'wallet_scanner.db'):
+    def __init__(self, db_file: str = None):
         """
         Initialize the wallet database
         
         Args:
-            db_file: Path to SQLite database file
+            db_file: Path to SQLite database file (defaults to wallet_scanner.db or /tmp/wallet_scanner.db for serverless)
         """
+        if db_file is None:
+            # For Vercel/serverless, use /tmp directory (writable)
+            # For regular deployment, use current directory
+            if os.getenv('VERCEL') or os.path.exists('/tmp'):
+                db_file = '/tmp/wallet_scanner.db'
+            else:
+                db_file = 'wallet_scanner.db'
         self.db_file = db_file
         self._local = threading.local()
         self._init_database()

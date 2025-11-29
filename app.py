@@ -49,13 +49,20 @@ def after_request(response):
         response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
-# Initialize scanner
-try:
-    scanner = WebScanner()
-except Exception as e:
-    print(f"WARNING: Could not initialize scanner: {e}")
-    print("The web interface will start but scanning may not work.")
-    scanner = None
+# Initialize scanner (lazy initialization for Vercel/serverless)
+scanner = None
+
+def get_scanner():
+    """Lazy initialization of scanner for serverless compatibility"""
+    global scanner
+    if scanner is None:
+        try:
+            scanner = WebScanner()
+        except Exception as e:
+            print(f"WARNING: Could not initialize scanner: {e}")
+            print("The web interface will start but scanning may not work.")
+            scanner = None
+    return scanner
 
 @app.route('/')
 def index():
@@ -65,22 +72,25 @@ def index():
 @app.route('/api/status')
 def get_status():
     """Get current scanning status and statistics"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'error': 'Scanner not initialized'}), 500
-    return jsonify(scanner.get_status())
+    return jsonify(scanner_instance.get_status())
 
 @app.route('/api/wallets')
 def get_wallets():
     """Get all wallets with balance"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'wallets': []})
-    wallets = scanner.get_wallets_with_balance()
+    wallets = scanner_instance.get_wallets_with_balance()
     return jsonify({'wallets': wallets})
 
 @app.route('/api/start', methods=['POST'])
 def start_scanning():
     """Start scanning"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'success': False, 'message': 'Scanner not initialized'}), 500
     
     data = request.get_json() or {}
@@ -95,7 +105,7 @@ def start_scanning():
         max_keys = int(max_keys)
     
     try:
-        success = scanner.start_scanning(
+        success = scanner_instance.start_scanning(
             max_keys=max_keys, 
             delay=float(delay),
             mode=mode,
@@ -117,28 +127,31 @@ def start_scanning():
 @app.route('/api/stop', methods=['POST'])
 def stop_scanning():
     """Stop scanning"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'success': False, 'message': 'Scanner not initialized'}), 500
-    scanner.stop_scanning()
+    scanner_instance.stop_scanning()
     return jsonify({'success': True, 'message': 'Scanning stopped'})
 
 @app.route('/api/statistics')
 def get_statistics():
     """Get database statistics"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'error': 'Scanner not initialized'}), 500
-    stats = scanner.database.get_statistics()
+    stats = scanner_instance.database.get_statistics()
     return jsonify(stats)
 
 @app.route('/api/export')
 def export_keys():
     """Export all searched private keys and addresses to text file"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'error': 'Scanner not initialized'}), 500
     
     try:
         # Get all wallets from database
-        all_wallets = scanner.database.get_all_wallets()
+        all_wallets = scanner_instance.database.get_all_wallets()
         
         # Create export file
         filename = 'searched_keys_export.txt'
@@ -174,14 +187,15 @@ def export_keys():
 @app.route('/api/searched')
 def get_searched():
     """Get list of recently searched wallets"""
-    if scanner is None:
+    scanner_instance = get_scanner()
+    if scanner_instance is None:
         return jsonify({'searched': []})
     
     # Get from scanner's recent searches
-    recent = scanner.get_recent_searches(limit=100)
+    recent = scanner_instance.get_recent_searches(limit=100)
     
     # Also get from database for older searches
-    db_recent = scanner.database.get_recent_searches(limit=100)
+    db_recent = scanner_instance.database.get_recent_searches(limit=100)
     
     # Combine and deduplicate
     seen_addresses = set()
@@ -232,6 +246,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n\nShutting down server...")
     finally:
-        if scanner:
-            scanner.close()
+        scanner_instance = get_scanner()
+        if scanner_instance:
+            scanner_instance.close()
 

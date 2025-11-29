@@ -1,6 +1,7 @@
 """
 Web-based Scanner - Thread-safe scanner for web interface
 """
+import os
 import time
 import threading
 from typing import Optional
@@ -10,10 +11,13 @@ from database import WalletDatabase
 from balance_checker import BalanceChecker
 
 class WebScanner:
-    def __init__(self, db_file: str = 'wallet_scanner.db'):
+    def __init__(self, db_file: str = None):
         """Initialize web scanner with thread safety"""
         self.key_generator = KeyGenerator()
         self.sequential_generator = None
+        # Use environment variable or default path
+        if db_file is None:
+            db_file = os.getenv('DATABASE_PATH')
         self.database = WalletDatabase(db_file)
         self.balance_checker = BalanceChecker()
         self.scanning = False
