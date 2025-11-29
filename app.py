@@ -24,7 +24,7 @@ except ImportError as e:
     print("python -m pip install -r requirements.txt")
     sys.exit(1)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # Domain configuration
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -68,6 +68,19 @@ def get_scanner():
 def index():
     """Main dashboard page"""
     return render_template('index.html')
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    """Serve static files - explicit route for Vercel compatibility"""
+    try:
+        return app.send_static_file(filename)
+    except Exception as e:
+        # Fallback for Vercel
+        static_path = os.path.join(app.static_folder, filename)
+        if os.path.exists(static_path):
+            from flask import send_file
+            return send_file(static_path)
+        return f"Static file not found: {filename}", 404
 
 @app.route('/api/status')
 def get_status():
