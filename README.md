@@ -18,6 +18,12 @@ Automated private key scanner with web interface. Scans Ethereum and BNB wallets
    pip install -r requirements.txt
    ```
 
+   111. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+
 2. **Start the web interface:**
    ```bash
    python app.py
